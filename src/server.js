@@ -48,13 +48,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/reports', reportRoutes);
 
+// Serve static files from public directory for the landing page
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Base route
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to Asset Management System API',
-    version: '1.0.0',
-    status: 'Running',
-  });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Error Handling
