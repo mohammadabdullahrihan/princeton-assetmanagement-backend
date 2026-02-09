@@ -68,8 +68,29 @@ AssetSchema.index({ title: 'text', description: 'text' });
 // Pre-save hook to generate assetId if not present
 AssetSchema.pre('save', async function (next) {
   if (!this.assetId) {
-    const count = await mongoose.model('Asset').countDocuments();
-    this.assetId = `CR-${String(count + 1).padStart(6, '0')}`;
+    try {
+      // Find the highest existing assetId
+      const lastAsset = await mongoose.model('Asset')
+        .findOne({ assetId: { $exists: true, $ne: null } })
+        .sort({ assetId: -1 })
+        .select('assetId')
+        .lean();
+      
+      let nextNumber = 1;
+      if (lastAsset && lastAsset.assetId) {
+        // Extract number from format "CR-000010"
+        const match = lastAsset.assetId.match(/CR-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+      
+      this.assetId = `CR-${String(nextNumber).padStart(6, '0')}`;
+    } catch (error) {
+      console.error('Error generating assetId:', error);
+      // Fallback to timestamp-based ID if there's an error
+      this.assetId = `CR-${Date.now()}`;
+    }
   }
   next();
 });
