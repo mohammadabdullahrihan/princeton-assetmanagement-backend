@@ -30,18 +30,39 @@ app.use(morgan('dev'));
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Database Connection
+// Database Connection with caching for serverless
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/asset-management';
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
+// Cache connection for serverless environments
+let cachedConnection = null;
+
+const connectDB = async () => {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    console.log('✅ Using cached MongoDB connection');
+    return cachedConnection;
+  }
+
+  try {
+    const connection = await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    
+    cachedConnection = connection;
     console.log('✅ Connected to MongoDB');
-  })
-  .catch((err) => {
+    return connection;
+  } catch (err) {
     console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
+    // Don't exit in serverless environment
+    if (require.main === module) {
+      process.exit(1);
+    }
+    throw err;
+  }
+};
+
+// Initialize connection
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);

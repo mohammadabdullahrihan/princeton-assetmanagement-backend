@@ -6,7 +6,7 @@ const assetTypes = require('../config/assetTypes');
 /**
  * Get all assets with filtering and pagination
  */
-const getAssets = async (req, res) => {
+const getAssets = async (req, res, next) => {
   try {
     const {
       page = 1,
@@ -67,7 +67,11 @@ const getAssets = async (req, res) => {
       assetTypes
     });
   } catch (error) {
-    throw new ApiError(500, error.message);
+    console.error('Error in getAssets:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch assets'
+    });
   }
 };
 
