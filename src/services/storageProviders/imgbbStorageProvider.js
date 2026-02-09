@@ -14,7 +14,20 @@ class ImgBBStorageProvider {
     if (!this.apiKey) throw new Error('ImgBB API Key not configured');
 
     const form = new FormData();
-    form.append('image', fs.createReadStream(file.path));
+    
+    // Handle both memory storage (buffer) and disk storage (path)
+    if (file.buffer) {
+      // Memory storage (Vercel/serverless)
+      form.append('image', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype
+      });
+    } else if (file.path) {
+      // Disk storage (local development)
+      form.append('image', fs.createReadStream(file.path));
+    } else {
+      throw new Error('File has neither buffer nor path');
+    }
 
     try {
       const response = await axios.post(`https://api.imgbb.com/1/upload?key=${this.apiKey}`, form, {
@@ -37,8 +50,8 @@ class ImgBBStorageProvider {
       console.error('ImgBB Upload Error:', error.response?.data || error.message);
       throw error;
     } finally {
-      // Clean up local temp file
-      if (fs.existsSync(file.path)) {
+      // Clean up local temp file only if it exists (disk storage)
+      if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
     }
