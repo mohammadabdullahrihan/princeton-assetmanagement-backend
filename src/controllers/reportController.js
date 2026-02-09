@@ -50,22 +50,24 @@ const getDashboardStats = async (req, res) => {
 
     const [
       totalAssets,
-      assets,
       upcomingFestivals,
+      recentAssets,
+      categoryStats
     ] = await Promise.all([
       Asset.countDocuments(),
-      Asset.find({}).sort({ createdAt: -1 }),
       Asset.find({
         festivalDate: { $gte: now, $lte: thirtyDaysFromNow }
-      }).sort({ festivalDate: 1 })
+      }).sort({ festivalDate: 1 }).limit(10),
+      Asset.find({}).sort({ createdAt: -1 }).limit(5),
+      Asset.aggregate([
+        { $group: { _id: '$assetCategory', count: { $sum: 1 } } }
+      ])
     ]);
 
-    const categoryDistribution = assets.reduce((acc, asset) => {
-      acc[asset.assetCategory] = (acc[asset.assetCategory] || 0) + 1;
-      return acc;
-    }, {});
-
-    const recentUploads = assets.slice(0, 5);
+    const categoryDistribution = {};
+    categoryStats.forEach(stat => {
+      categoryDistribution[stat._id] = stat.count;
+    });
 
     res.status(200).json({
       success: true,
@@ -80,7 +82,7 @@ const getDashboardStats = async (req, res) => {
           daysLeft: Math.ceil((new Date(a.festivalDate) - now) / (1000 * 60 * 60 * 24))
         })),
         categoryDistribution,
-        recentUploads: recentUploads.map(a => ({
+        recentUploads: recentAssets.map(a => ({
           id: a._id,
           title: a.title,
           category: a.assetCategory,
@@ -94,30 +96,6 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-/**
- * Get Audit Logs
- */
-const getAuditLogs = async (req, res) => {
-  try {
-    const AuditLog = require('../models/AuditLog');
-    const logs = await AuditLog.find({})
-      .populate('userId', 'name')
-      .populate('assetId', 'title assetId')
-      .sort({ timestamp: -1 })
-      .limit(100);
-
-    res.status(200).json({
-      success: true,
-      data: logs
-    });
-  } catch (error) {
-    throw new ApiError(500, error.message);
-  }
-};
-
-/**
- * Empty placeholders for removed hardware reports
- */
 const getDepreciationReport = async (req, res) => res.status(200).json({ success: true, data: { summary: {}, assets: [] } });
 const getMaintenanceReport = async (req, res) => res.status(200).json({ success: true, data: { summary: {}, maintenance: [] } });
 const getDisposalReport = async (req, res) => res.status(200).json({ success: true, data: { summary: {}, assets: [] } });
@@ -125,8 +103,7 @@ const getDisposalReport = async (req, res) => res.status(200).json({ success: tr
 module.exports = {
   getAssetReport,
   getDashboardStats,
-  getAuditLogs,
   getDepreciationReport,
-  getMaintenanceReport,
-  getDisposalReport,
+  maintenanceReport: getMaintenanceReport,
+  disposalReport: getDisposalReport,
 };

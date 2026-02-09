@@ -2,175 +2,70 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
 const Asset = require('../models/Asset');
-const AssetLifecycle = require('../models/AssetLifecycle');
 
 dotenv.config();
 
+const categories = [
+  { id: 'poster', name: 'Poster', imgPrefix: 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=800&q=80', metadata: { festival: 'Cultural Fest', size: '18x24 in' } },
+  { id: 'logo', name: 'Logo', imgPrefix: 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=800&q=80', metadata: { brandVariant: 'Monochrome', isSymbolOnly: true } },
+  { id: 'tshirt', name: 'T-Shirt', imgPrefix: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80', metadata: { size: 'Large', color: 'White' } },
+  { id: 'envelop', name: 'Envelop', imgPrefix: 'https://images.unsplash.com/photo-1626260124317-0200888636ba?w=800&q=80', metadata: { size: 'A4' } },
+  { id: 'banner', name: 'Banner', imgPrefix: 'https://images.unsplash.com/photo-1516245834210-c4c142787335?w=800&q=80', metadata: { dimensions: '6x3 ft', material: 'Flex' } },
+  { id: 'id_card', name: 'ID Card', imgPrefix: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80', metadata: { employeeName: 'Demo Employee', designation: 'Staff', expiryDate: '2026-12-31' } },
+  { id: 'visiting_card', name: 'Visiting Card', imgPrefix: 'https://images.unsplash.com/photo-1589118949245-7d38baf380d6?w=800&q=80', metadata: { personName: 'Manager Name', firmName: 'Studio Pro' } },
+  { id: 'pen', name: 'Pen', imgPrefix: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=800&q=80', metadata: { brand: 'Signature Series' } },
+  { id: 'glass', name: 'Glass', imgPrefix: 'https://images.unsplash.com/photo-1581091870622-0402b8966816?w=800&q=80', metadata: { glassType: 'Ceramic' } },
+  { id: 'receipt', name: 'Receipt', imgPrefix: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80', metadata: { receiptNo: 'R-101', date: '2024-01-01' } },
+  { id: 'bag', name: 'Bag', imgPrefix: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&q=80', metadata: { bagType: 'Tote Bag', material: 'Cotton' } },
+  { id: 'other', name: 'Other Asset', imgPrefix: 'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?w=800&q=80', metadata: { note: 'Miscellaneous item' } }
+];
+
 const seedData = async () => {
   try {
-    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/asset-management';
+    const mongoURI = process.env.MONGO_URI;
     await mongoose.connect(mongoURI);
     console.log('✅ Connected to MongoDB');
 
-    await User.deleteMany({});
     await Asset.deleteMany({});
-    await AssetLifecycle.deleteMany({});
-    console.log('🗑️  Cleared existing data');
+    console.log('🗑️  Cleared existing assets');
 
-    const admin1 = await User.create({
-      name: 'Admin User',
-      email: 'admin@example.com',
-      password: 'password123',
-      role: 'Admin',
-      department: 'Management',
+    const admin = await User.findOne({ role: 'Admin' });
+    if (!admin) {
+      console.error('❌ Admin user not found. Please create a user first.');
+      process.exit(1);
+    }
+
+    const assetsToCreate = [];
+
+    categories.forEach(cat => {
+      for (let i = 1; i <= 5; i++) {
+        assetsToCreate.push({
+          assetCategory: cat.id,
+          title: `${cat.name} Design v${i}`,
+          description: `High-quality ${cat.name.toLowerCase()} design version ${i} for professional use.`,
+          metadata: { ...cat.metadata, version: `v${i}.0` },
+          tags: [cat.name, 'Creative', 'Demo'],
+          files: [{ 
+            url: cat.imgPrefix + `&sig=${cat.id}${i}`, // Unique signature for variation
+            format: 'JPG', 
+            size: Math.floor(Math.random() * 5000000) + 1000000, 
+            originalName: `${cat.id}_v${i}.jpg` 
+          }],
+          createdBy: admin._id
+        });
+      }
     });
 
-    console.log('👥 Created users');
-
-    const assets = [
-      {
-        assetId: 'AST-000001',
-        assetType: 'ITAsset',
-        name: 'Dell Laptop XPS 15',
-        manufacturer: 'Dell',
-        serialNumber: 'DL-2023-001',
-        purchaseDate: new Date('2023-01-15'),
-        purchasePrice: 1500,
-        currentValue: 1200,
-        depreciationRate: 20,
-        condition: 'Good',
-        location: 'Office Floor 3',
-        assignedTo: admin1._id,
-        warrantyExpiry: new Date('2025-01-15'),
-        maintenanceSchedule: [
-          {
-            scheduledDate: new Date('2024-06-01'),
-            type: 'Routine',
-            description: 'System update and cleaning',
-            status: 'Completed',
-          },
-          {
-            scheduledDate: new Date('2024-12-01'),
-            type: 'Routine',
-            description: 'System update and cleaning',
-            status: 'Pending',
-          },
-        ],
-        createdBy: admin1._id,
-      },
-      {
-        assetId: 'AST-000002',
-        assetType: 'Vehicle',
-        name: 'Toyota Camry 2022',
-        manufacturer: 'Toyota',
-        serialNumber: 'TC-2022-VIN123456',
-        purchaseDate: new Date('2022-06-01'),
-        purchasePrice: 28000,
-        currentValue: 24000,
-        depreciationRate: 15,
-        condition: 'Good',
-        location: 'Parking Lot A',
-        warrantyExpiry: new Date('2025-06-01'),
-        insuranceDetails: {
-          provider: 'State Farm',
-          policyNumber: 'SF-123456',
-          coverage: 50000,
-          expiryDate: new Date('2024-12-31'),
-        },
-        createdBy: admin1._id,
-      },
-      {
-        assetId: 'AST-000003',
-        assetType: 'Furniture',
-        name: 'Executive Desk',
-        manufacturer: 'IKEA',
-        purchaseDate: new Date('2021-03-10'),
-        purchasePrice: 800,
-        currentValue: 600,
-        depreciationRate: 10,
-        condition: 'Fair',
-        location: 'Office Floor 2, Room 201',
-        createdBy: admin1._id,
-      },
-      {
-        assetId: 'AST-000004',
-        assetType: 'Equipment',
-        name: 'HP LaserJet Printer',
-        manufacturer: 'HP',
-        serialNumber: 'HP-LJ-2023-789',
-        purchaseDate: new Date('2023-05-20'),
-        purchasePrice: 450,
-        currentValue: 380,
-        depreciationRate: 15,
-        condition: 'Good',
-        location: 'Office Floor 1, Print Room',
-        warrantyExpiry: new Date('2024-05-20'),
-        maintenanceSchedule: [
-          {
-            scheduledDate: new Date('2024-11-20'),
-            type: 'Preventive',
-            description: 'Toner replacement and cleaning',
-            status: 'Pending',
-          },
-        ],
-        createdBy: admin1._id,
-      },
-      {
-        assetId: 'AST-000005',
-        assetType: 'ITAsset',
-        name: 'MacBook Pro 16"',
-        manufacturer: 'Apple',
-        serialNumber: 'MBP-2023-456',
-        purchaseDate: new Date('2023-08-01'),
-        purchasePrice: 2500,
-        currentValue: 2100,
-        depreciationRate: 18,
-        condition: 'Good',
-        location: 'Office Floor 3',
-        assignedTo: admin1._id,
-        warrantyExpiry: new Date('2024-08-01'),
-        createdBy: admin1._id,
-      },
-    ];
-
-    const createdAssets = await Asset.create(assets);
-    console.log('📦 Created assets');
-
-    for (const asset of createdAssets) {
-      await AssetLifecycle.create({
-        assetId: asset._id,
-        status: 'Active',
-        statusHistory: [
-          {
-            status: 'Active',
-            date: asset.createdAt,
-            reason: 'Asset created',
-            changedBy: asset.createdBy,
-          },
-        ],
-        maintenanceHistory: [],
-        transferHistory: [],
-      });
+    // Insertion loop to ensure unique assetId generation via save hooks
+    let count = 0;
+    for (const assetData of assetsToCreate) {
+      const asset = new Asset(assetData);
+      await asset.save();
+      count++;
+      if (count % 10 === 0) console.log(`📦 Inserted ${count} assets...`);
     }
 
-    console.log('📊 Created lifecycle records');
-
-    const firstAssetLifecycle = await AssetLifecycle.findOne({ assetId: createdAssets[0]._id });
-    if (firstAssetLifecycle) {
-      firstAssetLifecycle.maintenanceHistory.push({
-        date: new Date('2023-06-15'),
-        type: 'Preventive',
-        cost: 50,
-        performedBy: 'IT Support Team',
-        notes: 'Cleaned and updated system',
-      });
-      await firstAssetLifecycle.save();
-    }
-
-    console.log('✅ Database seeded successfully!');
-    console.log('\n📝 Login Credentials:');
-    console.log('Admin: admin@example.com / password123');
-
+    console.log(`✅ Success! Data seeded for all 12 categories. Total assets: ${count}`);
     process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding database:', error);

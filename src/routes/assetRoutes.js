@@ -44,10 +44,4 @@ router.delete(
   asyncHandler(deleteAsset)
 );
 
-router.post(
-  '/:id/log-download',
-  authenticate,
-  asyncHandler(require('../controllers/assetController').logDownload)
-);
-
 module.exports = router;

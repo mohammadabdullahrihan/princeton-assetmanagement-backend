@@ -4,7 +4,11 @@ const fs = require('fs');
 
 // Select provider based on environment
 const storageType = process.env.STORAGE_TYPE || 'local';
-const provider = storageType === 's3' 
+const provider = storageType === 'imgbb'
+  ? require('./storageProviders/imgbbStorageProvider')
+  : storageType === 'google_drive'
+  ? require('./storageProviders/googleDriveStorageProvider')
+  : storageType === 's3' 
   ? require('./storageProviders/s3StorageProvider') 
   : require('./storageProviders/localStorageProvider');
 
@@ -65,8 +69,43 @@ const storageService = {
     };
   },
 
+  uploadFiles: async (files) => {
+    if (storageType === 'imgbb') {
+      const uploadedFiles = [];
+      for (const file of files) {
+        const result = await provider.upload(file);
+        uploadedFiles.push({
+          url: result.url,
+          externalId: result.id,
+          format: path.extname(file.originalname).replace('.', '').toUpperCase(),
+          size: file.size,
+          originalName: file.originalname,
+          uploadedAt: new Date()
+        });
+      }
+      return uploadedFiles;
+    }
+    
+    if (storageType === 'google_drive') {
+      const uploadedFiles = [];
+      for (const file of files) {
+        const result = await provider.upload(file);
+        uploadedFiles.push({
+          url: result.url,
+          driveId: result.id,
+          format: path.extname(file.originalname).replace('.', '').toUpperCase(),
+          size: file.size,
+          originalName: file.originalname,
+          uploadedAt: new Date()
+        });
+      }
+      return uploadedFiles;
+    }
+    return files.map(file => storageService.getFileMetadata(file));
+  },
+
   deleteFile: async (filePath) => {
-    // If it's a full URL (S3), or a relative path (Local)
+    // If it's a drive ID or local path
     return await provider.delete(filePath);
   }
 };

@@ -1,9 +1,7 @@
 const Asset = require('../models/Asset');
-const AuditLog = require('../models/AuditLog');
 const { ApiError } = require('../middlewares/errorHandler');
 const storageService = require('../services/storageService');
 const assetTypes = require('../config/assetTypes');
-const { logAction } = require('../utils/auditLogger');
 
 /**
  * Get all assets with filtering and pagination
@@ -85,9 +83,6 @@ const getAssetById = async (req, res) => {
       throw new ApiError(404, 'Asset not found');
     }
 
-    // Audit Log: View
-    await logAction(req, 'VIEW', asset._id, { title: asset.title });
-
     res.status(200).json({
       success: true,
       data: asset,
@@ -108,7 +103,7 @@ const createAsset = async (req, res) => {
       throw new ApiError(400, `Invalid asset category: ${assetCategory}`);
     }
 
-    const files = req.files ? req.files.map(file => storageService.getFileMetadata(file)) : [];
+    const files = req.files ? await storageService.uploadFiles(req.files) : [];
     
     const asset = new Asset({
       assetCategory,
@@ -122,7 +117,6 @@ const createAsset = async (req, res) => {
     });
 
     await asset.save();
-    await logAction(req, 'UPLOAD', asset._id, { title: asset.title, fileCount: files.length });
 
     res.status(201).json({
       success: true,
@@ -145,7 +139,7 @@ const updateAsset = async (req, res) => {
     const asset = await Asset.findById(id);
     if (!asset) throw new ApiError(404, 'Asset not found');
 
-    const newFiles = req.files ? req.files.map(file => storageService.getFileMetadata(file)) : [];
+    const newFiles = req.files ? await storageService.uploadFiles(req.files) : [];
     
     let currentFiles = asset.files;
     if (removeFiles) {
@@ -164,7 +158,6 @@ const updateAsset = async (req, res) => {
     };
 
     const updatedAsset = await Asset.findByIdAndUpdate(id, updateData, { new: true });
-    await logAction(req, 'UPDATE', id, { title: updatedAsset.title });
 
     res.status(200).json({ success: true, data: updatedAsset });
   } catch (error) {
@@ -182,10 +175,10 @@ const deleteAsset = async (req, res) => {
     if (!asset) throw new ApiError(404, 'Asset not found');
 
     for (const file of asset.files) {
-      await storageService.deleteFile(file.url);
+      // Pass driveId if it exists, otherwise url (local path)
+      await storageService.deleteFile(file.driveId || file.url);
     }
 
-    await logAction(req, 'DELETE', id, { title: asset.title });
     await Asset.findByIdAndDelete(id);
 
     res.status(200).json({ success: true, message: 'Asset deleted' });
@@ -194,25 +187,10 @@ const deleteAsset = async (req, res) => {
   }
 };
 
-/**
- * Log Download Activity
- */
-const logDownload = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { version, fileName } = req.query;
-    await logAction(req, 'DOWNLOAD', id, { version, fileName });
-    res.status(200).json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
-};
-
 module.exports = {
   getAssets,
   getAssetById,
   createAsset,
   updateAsset,
-  deleteAsset,
-  logDownload
+  deleteAsset
 };

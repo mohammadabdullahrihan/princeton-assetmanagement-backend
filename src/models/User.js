@@ -46,7 +46,7 @@ const UserSchema = new mongoose.Schema(
 );
 
 // Index
-UserSchema.index({ email: 1 });
+
 UserSchema.index({ role: 1 });
 
 // Pre-save hook

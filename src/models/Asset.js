@@ -60,7 +60,6 @@ const AssetSchema = new mongoose.Schema(
 );
 
 // Indexes for performance
-AssetSchema.index({ assetCategory: 1 });
 AssetSchema.index({ festivalDate: 1 });
 AssetSchema.index({ createdAt: -1 });
 AssetSchema.index({ tags: 1 });
