@@ -24,3 +24,6 @@ uploads/
 # Other
 coverage/
 .DS_Store
+
+# Credentials
+gen-lang-client-0095704312-39f9c75b9dca.json
